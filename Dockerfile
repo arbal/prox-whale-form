@@ -2,10 +2,12 @@
 # https://hub.docker.com/r/hashicorp/terraform/tags
 FROM golang:alpine3.12
 
+ARG TERRAFORM_VERSION
+
 RUN apk update && \
     apk add --no-cache \
         git \
-        terraform
+        terraform=${TERRAFORM_VERSION}
 
 ENV GOROOT /usr/local/go
 
@@ -18,3 +20,5 @@ RUN go get -v github.com/Telmate/terraform-provider-proxmox/cmd/terraform-provid
     go install -v github.com/Telmate/terraform-provider-proxmox/cmd/terraform-provisioner-proxmox && \
     cp /go/bin/terraform-provider-proxmox /usr/local/bin && \
     cp /go/bin/terraform-provisioner-proxmox /usr/local/bin
+
+ENTRYPOINT [ "/usr/bin/terraform" ]

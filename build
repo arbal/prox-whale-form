@@ -2,3 +2,10 @@
 
 set -eou pipefail
 
+# Alpine teraform version
+# https://pkgs.alpinelinux.org/package/edge/community/x86/terraform
+TERRAFORM_VERSION="0.12.25-r0"
+
+docker build . \
+    --build-arg TERRAFORM_VERSION=${TERRAFORM_VERSION} \
+    --tag tmpdubz/terraform-proxmox:latest
