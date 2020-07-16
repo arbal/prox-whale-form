@@ -1,11 +1,87 @@
 #!/bin/bash
 
 set -eou pipefail
+source <(curl https://raw.githubusercontent.com/tmpdubz/rote/master/rote)
+
+# TODO: set up a registry on my homelab and point this there by default
+REGISTRY_HOST=${DOCKER_REGISTRY:-my/fake/registry}
+REGISTRY_PORT=${DOCKER_REGISTRY_PORT:-5000}
+
+# e.g. registry:5000/tmpdubz/image:latest
+REGISTRY_PATH="tmpdubz"
 
 # Alpine teraform version
 # https://pkgs.alpinelinux.org/package/edge/community/x86/terraform
-TERRAFORM_VERSION="0.12.25-r0"
+TVER="${TERRAFORM_VERSION:-0.12.25-r0}"
+TL=${TAG_LATEST:-true}
+IMAGE_NAME="terraform-proxmox"
 
-docker build . \
-    --build-arg TERRAFORM_VERSION=${TERRAFORM_VERSION} \
-    --tag tmpdubz/terraform-proxmox:latest
+# Build the image
+print_info "Building docker image..."
+if [ "${TL}" == "true" ]; then
+    docker build . \
+        --build-arg TERRAFORM_VERSION=${TVER} \
+        --tag ${IMAGE_NAME}:latest \
+        --tag ${IMAGE_NAME}:${TVER}
+else
+    docker build . \
+        --build-arg TERRAFORM_VERSION=${TVER} \
+        --tag ${IMAGE_NAME}:${TVER}
+fi
+print_info "Done!"
+
+#
+#
+# Print usage
+function usage() {
+    cat <<EOF
++-------------------------+
+|  PROX-WHALE-FORM-BUILD  |
++-------------------------+
+
+    usage: ${0} [-ph ]
+
+    -p (--push)     - push image to registry specified with env var 'DOCKER_REGISTRY'
+    -h (help)       - print help
+
++--------------------------+
+EOF
+}
+#
+#
+# Tag and push the image to the configured registry
+function push() {
+    docker tag ${IMAGE_NAME} ${REGISTRY_HOST}:${REGISTRY_PORT}/${REGISTRY_PATH}/${IMAGE_NAME}
+    docker push ${REGISTRY_HOST}:${REGISTRY_PORT}/${REGISTRY_PATH}/${IMAGE_NAME}
+}
+
+PUSH=0
+# Transform long options to short ones
+for arg in "$@"; do
+  shift
+  case "$arg" in
+    "--push") set -- "$@" "-p" ;;
+    *)        set -- "$@" "$arg"
+  esac
+done
+
+while getopts "ph:" OPTION
+do
+    case $OPTION in
+        p) PUSH=1;;
+        h) 
+            usage
+            exit
+            ;;
+        \?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if [ ${PUSH} == 1 ]; then
+    print_info "Pushing image to registry: ${REGISTRY_HOST}:${REGISTRY_PORT}"
+    push
+    print_info "Success!"
+fi
