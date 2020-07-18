@@ -9,6 +9,7 @@ REGISTRY_PORT=${DOCKER_REGISTRY_PORT:-5000}
 
 # e.g. registry:5000/tmpdubz/image:latest
 REGISTRY_PATH="tmpdubz"
+DOCKER_HUB_REGISTRY_PATH="tdubiel"
 
 # Alpine teraform version
 # https://pkgs.alpinelinux.org/package/edge/community/x86/terraform
@@ -41,6 +42,7 @@ function usage() {
 
     usage: ${0} [-ph ]
 
+    -d              - use dockerhub for the registry (you need to be logged in)
     -p (--push)     - push image to registry specified with env var 'DOCKER_REGISTRY'
     -h (help)       - print help
 
@@ -51,11 +53,21 @@ EOF
 #
 # Tag and push the image to the configured registry
 function push() {
-    docker tag ${IMAGE_NAME} ${REGISTRY_HOST}:${REGISTRY_PORT}/${REGISTRY_PATH}/${IMAGE_NAME}
-    docker push ${REGISTRY_HOST}:${REGISTRY_PORT}/${REGISTRY_PATH}/${IMAGE_NAME}
+    if [ ${PUSH_DOCKERHUB} == 1 ]; then
+        docker tag ${IMAGE_NAME}:${TVER} ${DOCKER_HUB_REGISTRY_PATH}/${IMAGE_NAME}:${TVER}
+    else
+        docker tag ${IMAGE_NAME} ${REGISTRY_HOST}:${REGISTRY_PORT}/${REGISTRY_PATH}/${IMAGE_NAME}
+    fi
+    
+    if [ ${PUSH_DOCKERHUB} == 1 ]; then
+        docker push ${DOCKER_HUB_REGISTRY_PATH}/${IMAGE_NAME}:${TVER}
+    else
+        docker push ${REGISTRY_HOST}:${REGISTRY_PORT}/${REGISTRY_PATH}/${IMAGE_NAME}
+    fi
 }
 
 PUSH=0
+PUSH_DOCKERHUB=0
 # Transform long options to short ones
 for arg in "$@"; do
   shift
@@ -65,10 +77,11 @@ for arg in "$@"; do
   esac
 done
 
-while getopts "ph:" OPTION
+while getopts "pdh:" OPTION
 do
     case $OPTION in
         p) PUSH=1;;
+        d) PUSH_DOCKERHUB=1;;
         h) 
             usage
             exit
